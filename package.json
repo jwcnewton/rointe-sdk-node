@@ -1,0 +1,10 @@
+{
+  "name": "rointe-sdk",
+  "version": "1.0.0",
+  "description": "rointe-sdk node ",
+  "author": "jwcnewton",
+  "license": "ISC",
+  "dependencies": {
+    "axios": "^0.27.2"
+  }
+}
