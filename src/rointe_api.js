@@ -182,18 +182,125 @@ class rointe_api {
     }
 
     async set_device_temp(device_id, new_temp) {
+        if (!(await this._ensure_valid_auth())) {
+            return new ApiResponse(false, null, "Invalid authentication.")
+        }
+        const args = { "auth": this.auth_token }
+        const body = { "temp": new_temp, "mode": "manual", "power": true }
+        const url = `${settings.FIREBASE_DEFAULT_URL}${settings.FIREBASE_DEVICE_DATA_PATH_BY_ID(device_id)}`
+        return this._send_patch_request(url, args, body)
+    }
 
+    async get_latest_energy_stats(device_id) {
+
+       var target_date = utils.now()
+       target_date.setMinutes(0)
+       target_date.setSeconds(0)
+       target_date.setMilliseconds(0)
+        // Attempt to retrieve the latest value. If not found, go back one hour. Max 5 tries.
+        var attempts = settings.ENERGY_STATS_MAX_TRIES
+
+        while (attempts > 0) {
+            var result = await this._retrieve_hour_energy_stats(device_id, target_date)
+
+            if (result.error_message == "No energy stats found."){
+                attempts = attempts - 1
+                target_date.setHours(target_date.getHours() + 1)
+            } else {
+                return result
+            }
+        }
+        return new ApiResponse(false, null, "Max tries exceeded.")
+    }
+
+    async _retrieve_hour_energy_stats(device_id, target_date) {
         if (!(await this._ensure_valid_auth())) {
             return new ApiResponse(false, null, "Invalid authentication.")
         }
 
+        //Sample URL /history_statistics/device_id/daily/2022/01/21/energy/010000.json
         const args = { "auth": this.auth_token }
-        const body = { "temp": new_temp, "mode": "manual", "power": true }
+        const url = `
+            ${settings.FIREBASE_DEFAULT_URL}
+            ${settings.FIREBASE_DEVICE_ENERGY_PATH_BY_ID(device_id)}
+            ${this._format_dateTime(target_date)}/energy/
+            ${target_date.getHours()}0000.json`.replace(/(\r\n|\n|\r|\s)/gm, "")
 
-        const url = `${settings.FIREBASE_DEFAULT_URL}${settings.FIREBASE_DEVICE_DATA_PATH_BY_ID(device_id)}`
+        var response;
+        try {
+            response = await axios.get(url,
+                {
+                    params: args
+                })
+        } catch (ex) {
+            return new ApiResponse(false, null, `Error response from API in _retrieve_hour_energy_stats() ${ex}`)
+        }
 
-        return this._send_patch_request(url, args, body)
+        if (response.status != 200) {
+            return new ApiResponse(
+                false, null, `_retrieve_hour_energy_stats() returned ${response.status}`
+            )
+        }
+
+        const response_json = response.data
+
+        if (response_json == null) {
+            return new ApiResponse(false, null, "No energy stats found.")
+        }
+        const dateRange = new Date(target_date)
+        dateRange.setHours(target_date.getHours() + 1)
+        const now = utils.now()
+        const data = {
+            created: now,
+            start: target_date,
+            end: dateRange,
+            kwh: response_json.kw_h,
+            effective_power: response_json.effective_power,
+        }
+
+        return new ApiResponse(true, data, null)
     }
+
+    /* 
+        async set_device_preset(device, preset_mode) {
+            if (!(await this._ensure_valid_auth())) {
+                return new ApiResponse(false, null, "Invalid authentication.")
+            }
+            
+            device_id = device.id
+            args = {"auth": self.auth_token}
+            body: Dict[str, Any] = {}
+
+            url = "{}{}".format(
+                FIREBASE_DEFAULT_URL, FIREBASE_DEVICE_DATA_PATH_BY_ID.format(device_id)
+            )
+
+            if preset_mode == "comfort":
+                body = {
+                    "power": True,
+                    "mode": "manual",
+                    "temp": device.comfort_temp,
+                    "status": "comfort",
+                }
+
+            elif preset_mode == "eco":
+                body = {
+                    "power": True,
+                    "mode": "manual",
+                    "temp": device.eco_temp,
+                    "status": "eco",
+                }
+            elif preset_mode == "Anti-frost":
+                body = {
+                    "power": True,
+                    "mode": "manual",
+                    "temp": device.ice_temp,
+                    "status": "ice",
+                }
+
+            return self._send_patch_request(url, args, body)
+        }
+    */
 
     _clean_credentials() {
         this.username = null
@@ -313,6 +420,16 @@ class rointe_api {
         }
 
         return response;
+    }
+
+    _format_dateTime(target_date){
+        const _localDateParts = target_date.toLocaleDateString("en-GB", { 
+            day: "2-digit",
+            year: "numeric",
+            month: "2-digit",
+        }).split('/')
+        return `${_localDateParts[2]}/${_localDateParts[0]}/${_localDateParts[1]}`
+        //.split('/').reverse().join('/');
     }
 }
 

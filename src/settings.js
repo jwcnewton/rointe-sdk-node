@@ -13,7 +13,9 @@ const settings = {
     FIREBASE_DEVICE_DATA_PATH_BY_ID : (device_id) => {
         return `/devices/${device_id}/data.json`
     },
-    FIREBASE_DEVICE_ENERGY_PATH_BY_ID : "/history_statistics/{}/daily/",
+    FIREBASE_DEVICE_ENERGY_PATH_BY_ID : (device_id) => {
+        return `/history_statistics/${device_id}/daily/`
+    },
     ENERGY_STATS_MAX_TRIES : 5
 }
 
