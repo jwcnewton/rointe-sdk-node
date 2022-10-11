@@ -1,6 +1,10 @@
 # rointe-sdk-node
 Node SDK for Rointe 
 
+```bash
+npm i rointe-sdk
+```
+
 ## Example Usage
 
 ```js
