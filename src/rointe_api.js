@@ -181,12 +181,12 @@ class rointe_api {
         return new ApiResponse(true, response_json, null)
     }
 
-    async set_device_temp(device_id, new_temp) {
+    async set_device_temp(device_id, new_temp, power=true) {
         if (!(await this._ensure_valid_auth())) {
             return new ApiResponse(false, null, "Invalid authentication.")
         }
         const args = { "auth": this.auth_token }
-        const body = { "temp": new_temp, "mode": "manual", "power": true }
+        const body = { "temp": new_temp, "mode": "manual", "power": power }
         const url = `${settings.FIREBASE_DEFAULT_URL}${settings.FIREBASE_DEVICE_DATA_PATH_BY_ID(device_id)}`
         return this._send_patch_request(url, args, body)
     }
