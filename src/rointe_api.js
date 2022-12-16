@@ -87,31 +87,29 @@ class rointe_api {
 
     async get_all_devices_by_installation_name(local_id, name) {
         const get_installs = await this.get_installation_by_name(local_id, name);
-
         if (get_installs.success) {
             const install_zones = get_installs.data.zones;
-
             const zone_keys = Object.keys(install_zones);
             let device_results = []
             for (let i = 0; i < zone_keys.length; i++) {
                 const zone = install_zones[zone_keys[i]]
 
-                const devices = Object.keys(zone.devices);
-                for (let j = 0; j < devices.length; j++) {
-                    const device_id = devices[j];
-                    device_results.push({
-                        'device_id': device_id,
-                        'active': zone.devices[device_id]
-                    })
+                if (zone.devices != null){
+                    const devices = Object.keys(zone.devices);
+
+                    for (let j = 0; j < devices.length; j++) {
+                        const device_id = devices[j];
+                        device_results.push({
+                            'device_id': device_id,
+                            'active': zone.devices[device_id]
+                        })
+                    }
                 }
-
-
             }
             return new ApiResponse(true, device_results, null);
         } else {
             return get_installs;
         }
-
     }
 
     async get_installations(local_id) {
