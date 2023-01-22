@@ -1,5 +1,4 @@
 const axios = require('axios');
-const settings = require('./settings');
 const utils = require('./utils');
 
 class ApiResponse {
@@ -11,9 +10,12 @@ class ApiResponse {
 }
 
 class rointe_api {
-    constructor(username, password) {
+    constructor(username, password, is_rointe=true) {
         this.username = username;
         this.password = password;
+        this.is_rointe = is_rointe;
+
+        this.settings = require('./settings')(is_rointe);
     }
 
     async initialize_authentication() {
@@ -42,7 +44,7 @@ class rointe_api {
         var response;
         try {
             response = await axios.post(
-                `${settings.AUTH_HOST}${settings.AUTH_ACCT_INFO_URL}?key=${settings.FIREBASE_APP_KEY}`, payload)
+                `${this.settings.AUTH_HOST}${this.settings.AUTH_ACCT_INFO_URL}?key=${this.settings.FIREBASE_APP_KEY}`, payload)
         } catch (ex) {
             return new ApiResponse(false, null, `Network error ${ex}`)
         }
@@ -121,7 +123,7 @@ class rointe_api {
         var response;
         try {
             response = await axios.get(
-                `${settings.FIREBASE_DEFAULT_URL}${settings.FIREBASE_INSTALLATIONS_PATH}`,
+                `${this.settings.FIREBASE_DEFAULT_URL}${this.settings.FIREBASE_INSTALLATIONS_PATH}`,
                 {
                     params: {
                         "auth": this.auth_token,
@@ -157,7 +159,7 @@ class rointe_api {
         var response;
         try {
             response = await axios.get(
-                `${settings.FIREBASE_DEFAULT_URL}${settings.FIREBASE_DEVICES_PATH_BY_ID(device_id)}`,
+                `${this.settings.FIREBASE_DEFAULT_URL}${this.settings.FIREBASE_DEVICES_PATH_BY_ID(device_id)}`,
                 {
                     params: args
                 })
@@ -185,7 +187,7 @@ class rointe_api {
         }
         const args = { "auth": this.auth_token }
         const body = { "temp": new_temp, "mode": "manual", "power": power }
-        const url = `${settings.FIREBASE_DEFAULT_URL}${settings.FIREBASE_DEVICE_DATA_PATH_BY_ID(device_id)}`
+        const url = `${this.settings.FIREBASE_DEFAULT_URL}${this.settings.FIREBASE_DEVICE_DATA_PATH_BY_ID(device_id)}`
         return this._send_patch_request(url, args, body)
     }
 
@@ -196,7 +198,7 @@ class rointe_api {
        target_date.setSeconds(0)
        target_date.setMilliseconds(0)
         // Attempt to retrieve the latest value. If not found, go back one hour. Max 5 tries.
-        var attempts = settings.ENERGY_STATS_MAX_TRIES
+        var attempts = this.settings.ENERGY_STATS_MAX_TRIES
 
         while (attempts > 0) {
             var result = await this._retrieve_hour_energy_stats(device_id, target_date)
@@ -219,8 +221,8 @@ class rointe_api {
         //Sample URL /history_statistics/device_id/daily/2022/01/21/energy/010000.json
         const args = { "auth": this.auth_token }
         const url = `
-            ${settings.FIREBASE_DEFAULT_URL}
-            ${settings.FIREBASE_DEVICE_ENERGY_PATH_BY_ID(device_id)}
+            ${this.settings.FIREBASE_DEFAULT_URL}
+            ${this.settings.FIREBASE_DEVICE_ENERGY_PATH_BY_ID(device_id)}
             ${this._format_dateTime(target_date)}/energy/
             ${target_date.getHours()}0000.json`.replace(/(\r\n|\n|\r|\s)/gm, "")
 
@@ -259,47 +261,6 @@ class rointe_api {
         return new ApiResponse(true, data, null)
     }
 
-    /* 
-        async set_device_preset(device, preset_mode) {
-            if (!(await this._ensure_valid_auth())) {
-                return new ApiResponse(false, null, "Invalid authentication.")
-            }
-            
-            device_id = device.id
-            args = {"auth": self.auth_token}
-            body: Dict[str, Any] = {}
-
-            url = "{}{}".format(
-                FIREBASE_DEFAULT_URL, FIREBASE_DEVICE_DATA_PATH_BY_ID.format(device_id)
-            )
-
-            if preset_mode == "comfort":
-                body = {
-                    "power": True,
-                    "mode": "manual",
-                    "temp": device.comfort_temp,
-                    "status": "comfort",
-                }
-
-            elif preset_mode == "eco":
-                body = {
-                    "power": True,
-                    "mode": "manual",
-                    "temp": device.eco_temp,
-                    "status": "eco",
-                }
-            elif preset_mode == "Anti-frost":
-                body = {
-                    "power": True,
-                    "mode": "manual",
-                    "temp": device.ice_temp,
-                    "status": "ice",
-                }
-
-            return self._send_patch_request(url, args, body)
-        }
-    */
-
     _clean_credentials() {
         this.username = null
         this.password = null
@@ -323,7 +284,7 @@ class rointe_api {
         const payload = { "grant_type": "refresh_token", "refresh_token": this.refresh_token }
         var response;
         try {
-            response = await axios.post(`${settings.AUTH_REFRESH_ENDPOINT}?key=${settings.FIREBASE_APP_KEY}`, payload)
+            response = await axios.post(`${this.settings.AUTH_REFRESH_ENDPOINT}?key=${this.settings.FIREBASE_APP_KEY}`, payload)
         } catch (ex) {
             return new ApiResponse(false, null, `Network error ${e}`)
         }
@@ -357,7 +318,7 @@ class rointe_api {
         }
         var response;
         try {
-            response = await axios.post(`${settings.AUTH_HOST}${settings.AUTH_VERIFY_URL}?key=${settings.FIREBASE_APP_KEY}`, payload)
+            response = await axios.post(`${this.settings.AUTH_HOST}${this.settings.AUTH_VERIFY_URL}?key=${this.settings.FIREBASE_APP_KEY}`, payload)
         } catch (ex) {
             return new ApiResponse(false, null, `Network error ${ex}`)
         }
@@ -408,7 +369,7 @@ class rointe_api {
         } catch (ex) {
             return new ApiResponse(false, null, `Network error ${ex}`)
         }
-
+        
         if (!response) {
             return false
         }
